@@ -12,7 +12,7 @@ from scipy.spatial import cKDTree
 from data_preprocessing import las_to_csv, downsample
 from par_computation import neighbourhood_features
 
-# %% Clip las to smaller areas
+# %% file paths
 las_path = "/Data/ResearchArea.las"
 las2txt_path = "D:/MasterThesis/LAStools/LAStools/bin/las2txt.exe"
 CloudCompare_path = "C:/Program Files/CloudCompare/CloudCompare.exe"

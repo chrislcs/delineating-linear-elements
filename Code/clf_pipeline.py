@@ -6,6 +6,7 @@
 
 import pandas as pd
 import numpy as np
+import time
 from clf_preprocessing import merge_dataframes, correlated_features
 from clf_classifiers import BalancedRandomForest, classify_vegetation
 from clf_assessment import (grid_search, cross_validation,
@@ -14,7 +15,7 @@ from clf_assessment import (grid_search, cross_validation,
 # %% Load ground truth data
 print "loading data.."
 classes = ['veg', 'non_veg']
-veg_pc = pd.read_csv('../Data/C_39CN1_veg_new.csv', delimiter=';', header=0)
+veg_pc = pd.read_csv('../Data/C_39CN1_veg.csv', delimiter=';', header=0)
 non_veg_pc = pd.read_csv('../Data/C_39CN1_nonveg.csv', delimiter=';', header=0)
 data = merge_dataframes({'veg': veg_pc, 'non_veg': non_veg_pc}, 'class')
 data.rename(columns={'//X': 'X'}, inplace=True)
@@ -71,14 +72,16 @@ for i in xrange(parts):
 point_cloud['class'] = classification
 
 # %% Classify trees / low vegetation
-points = point_cloud.as_matrix(columns=['X', 'Y', 'Z'])
+t = time.time()
+points = point_cloud.loc[point_cloud['class'] == 1].as_matrix(columns=['X', 'Y', 'Z'])
 radius = 2.0
 tree_th = 4.0
 classification = classify_vegetation(points, radius, tree_th)
 point_cloud['veg_class'] = 'non_veg'
-point_cloud.loc[point_cloud['class'] == 0, 'veg_class'] = classification
+point_cloud.loc[point_cloud['class'] == 1, 'veg_class'] = classification
 point_cloud['class'], _ = pd.factorize(point_cloud['veg_class'])
+print "Done! Runtime: %s" % str(time.time() - t)
 
 # %% Save results
-point_cloud.to_csv('veg_classification.csv',
+point_cloud.to_csv('../Data/veg_classification.csv',
                    columns=['X', 'Y', 'Z', 'class'], index=False)

@@ -1,3 +1,4 @@
+.spyproject/
 *.py[cod]
-
+*.csv
 *.las

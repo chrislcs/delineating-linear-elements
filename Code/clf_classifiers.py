@@ -156,7 +156,7 @@ class BalancedRandomForest(object):
             # Add the tree to the forest
             self.forest.append(tree)
         # Average the feature importances over all trees
-        self.feature_importance_ = importances / self.n_estimators
+        self.feature_importances_ = importances / self.n_estimators
 
     def predict(self, X):
         """
@@ -209,7 +209,7 @@ def classify_vegetation(points, radius, threshold):
 
     Parameters
     ----------
-    points : (Mx2) array
+    points : (Mx3) array
         The coordinates of the points.
     radius : float or int
         The radius of the cylindrical neighbourhood.

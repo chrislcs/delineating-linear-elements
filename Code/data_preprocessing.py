@@ -54,7 +54,7 @@ def las_to_csv(file_path, method='CloudCompare',
     return out_filename
 
 
-def downsample(las_file_path, distance, tool_path='CloudCompare',
+def downsample(file_path, distance, tool_path='CloudCompare',
                overwrite=False):
     """
     Downsample a point cloud by specifying a minimum distance between points.
@@ -77,20 +77,28 @@ def downsample(las_file_path, distance, tool_path='CloudCompare',
 
     Output
     ------
-    out_file : LAS file
+    out_file : file
          The downsampled point cloud
     """
-    las_path_root = os.path.splitext(las_file_path)[0]
-    out_filename = '%s_sub_%s.las' % (las_path_root,
-                                      str(distance).replace('.', '_'))
+    path_root, ext = os.path.splitext(file_path)
+    out_filename = '%s_sub_%s%s' % (path_root,
+                                    str(distance).replace('.', '_'), ext)
 
     if os.path.isfile(out_filename) and overwrite is False:
         print 'Subsampled output file already exists.'
     else:
-        subprocess.call([tool_path, '-SILENT', '-C_EXPORT_FMT', 'LAS', '-o',
-                         '-GLOBAL_SHIFT', '0', '0', '0', las_file_path,
-                         '-NO_TIMESTAMP', '-SS', 'SPATIAL', str(distance)])
+        if ext.lower() == '.csv':
+            subprocess.call([tool_path, '-SILENT', '-C_EXPORT_FMT', 'ASC',
+                             '-SEP', 'COMMA', '-EXT', 'csv',
+                             '-o', '-GLOBAL_SHIFT', '0', '0', '0', file_path,
+                             '-NO_TIMESTAMP', '-SS', 'SPATIAL', str(distance)])
+        elif ext.lower() == '.las':
+            subprocess.call([tool_path, '-SILENT', '-C_EXPORT_FMT', 'LAS',
+                             '-o', '-GLOBAL_SHIFT', '0', '0', '0', file_path,
+                             '-NO_TIMESTAMP', '-SS', 'SPATIAL', str(distance)])
+        else:
+            raise IOError('Specified file not of valid type.')
 
-        os.rename('%s_SPATIAL_SUBSAMPLED.las' % las_path_root, out_filename)
+        os.rename('%s_SPATIAL_SUBSAMPLED%s' % (path_root, ext), out_filename)
 
     return out_filename
