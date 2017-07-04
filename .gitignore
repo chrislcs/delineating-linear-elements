@@ -1,4 +1,11 @@
 .spyproject/
 *.py[cod]
+
 *.csv
 *.las
+
+*.shp
+*.cpg
+*.dbf
+*.prj
+*.shx

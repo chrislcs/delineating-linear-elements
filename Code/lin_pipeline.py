@@ -77,7 +77,7 @@ print 'Done! Time elapsed: %.2f' % (time.time() - t)
 
 # %% Export to shapefile
 print 'Exporting to shapefile..'
-filename = 'linear_elements_t.shp'
+filename = '../Data/linear_elements_t.shp'
 epsg = 28992
 export_to_shapefile(filename, linear_elements_t, epsg, global_shift_t)
 
@@ -113,6 +113,6 @@ linear_elements_lv = merge_objects(linear_elements_lv, max_dist, max_dir_dif,
 print 'Time elapsed: %.2f' % (time.time() - t)
 
 # %% Export to shapefile
-filename = 'linear_elements_lv.shp'
+filename = '../Data/linear_elements_lv.shp'
 
 export_to_shapefile(filename, linear_elements_lv, epsg, global_shift_v)
