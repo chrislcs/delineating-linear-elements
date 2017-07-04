@@ -34,7 +34,8 @@ trees_path = downsample(trees_path, 2.0, CloudCompare_path)
 # %% Load point cloud data
 print 'Loading tree points..'
 point_cloud = pd.read_csv('../Data/trees_2D_sub_2_0.csv',
-                          delimiter=',', names=['X', 'Y'])
+                          delimiter=',', names=['X', 'Y', 'Z'], header=1)
+point_cloud.drop('Z', axis=1, inplace=True)
 
 points = point_cloud.as_matrix()
 global_shift_t = (min(points[:, 0]), min(points[:, 1]))
@@ -83,7 +84,8 @@ export_to_shapefile(filename, linear_elements_t, epsg, global_shift_t)
 # %% Load point cloud data
 print 'Loading low vegetation points..'
 point_cloud = pd.read_csv('../Data/low_veg_2D_sub_1_0.csv',
-                          delimiter=',', names=['X', 'Y'])
+                          delimiter=',', names=['X', 'Y', 'Z'], header=1)
+point_cloud.drop('Z', axis=1, inplace=True)
 
 points = point_cloud.as_matrix()
 global_shift_v = (min(points[:, 0]), min(points[:, 1]))
