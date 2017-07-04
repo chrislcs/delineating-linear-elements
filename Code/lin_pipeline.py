@@ -20,13 +20,15 @@ point_cloud = pd.read_csv('../Data/veg_classification.csv')
 # Downsample low vegetation points
 low_veg_path = '%s\\Data\\low_veg_2D.csv' % os.path.dirname(cwd)
 point_cloud.loc[point_cloud['class'] == 1].to_csv(low_veg_path,
-                                                  columns=['X', 'Y'])
+                                                  columns=['X', 'Y'],
+                                                  index=False)
 low_veg_path = downsample(low_veg_path, 1.0, CloudCompare_path)
 
 # Downsample tree points
 trees_path = '%s\\Data\\trees_2D.csv' % os.path.dirname(cwd)
 point_cloud.loc[point_cloud['class'] == 2].to_csv(trees_path,
-                                                  columns=['X', 'Y'])
+                                                  columns=['X', 'Y'],
+                                                  index=False)
 trees_path = downsample(trees_path, 2.0, CloudCompare_path)
 
 # %% Load point cloud data
