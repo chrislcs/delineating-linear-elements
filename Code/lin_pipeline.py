@@ -68,10 +68,10 @@ print 'Merging objects..'
 t = time.time()
 max_dist = 5.0
 max_dir_dif = math.radians(30)
-min_elong = 1.5
-max_c_dir_dif = math.radians(20)
+min_elong = 1.3
+max_c_dir_dif = math.radians(30)
 max_width = 60
-linear_elements_t = merge_objects(linear_elements_t, max_dist, max_dir_dif,
+linear_elements_t_m = merge_objects(linear_elements_t, max_dist, max_dir_dif,
                                   max_c_dir_dif, min_elong, max_width)
 print 'Done! Time elapsed: %.2f' % (time.time() - t)
 
@@ -79,7 +79,7 @@ print 'Done! Time elapsed: %.2f' % (time.time() - t)
 print 'Exporting to shapefile..'
 filename = '../Data/linear_elements_t.shp'
 epsg = 28992
-export_to_shapefile(filename, linear_elements_t, epsg, global_shift_t)
+export_to_shapefile(filename, linear_elements_t_m, epsg, global_shift_t)
 
 # %% Load point cloud data
 print 'Loading low vegetation points..'

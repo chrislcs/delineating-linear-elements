@@ -742,6 +742,26 @@ def grow_rectangular(points, points_remain, kdtree, threshold, alpha=0.4,
     return cluster
 
 
+def to_positive_angle(angle):
+    """
+    Converts an angle to positive.
+
+    Parameters
+    ----------
+    angle : float
+        The angle in radians
+
+    Returns
+    -------
+    angle : float
+        The positive angle
+    """
+    angle = angle % math.pi
+    if angle < 0:
+        angle += math.pi
+    return angle
+
+
 def angle_difference(angle1, angle2):
     """
     Compute the difference between two angles.
@@ -758,7 +778,10 @@ def angle_difference(angle1, angle2):
     angle_dif : float
         The differece between the angles.
     """
-    return 180 - abs(abs(angle1 - angle2) - 180)
+    pos1 = math.pi - abs(abs(angle1 - angle2) - math.pi)
+    pos2 = math.pi - abs(abs(to_positive_angle(angle1) -
+                             to_positive_angle(angle2)) - math.pi)
+    return pos1 if pos1 < pos2 else pos2
 
 
 def merge_objects(objects, max_dist, max_dir_dif,  max_c_dir_dif,
