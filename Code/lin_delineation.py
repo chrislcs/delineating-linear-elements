@@ -464,9 +464,8 @@ class VegetationObject(AlphaShape, BoundingBox):
 
     Methods
     -------
-    get_polygon_coords(shift=(0,0))
-        Returns the coordinates of vertices of the polygons of
-        the vegetation object.
+    shift_polygons(shift=(0,0))
+        Returns the polygons shifted by the given values.
     export_to_shp(filename, epsg, shift=(0, 0))
         Export the object to a shapefile.
     """
@@ -497,10 +496,9 @@ class VegetationObject(AlphaShape, BoundingBox):
             y = c2[1] - c3[1]
         return math.atan2(y, x)
 
-    def get_polygon_coords(self, shift=(0, 0)):
+    def shift_polygons(self, shift=(0, 0)):
         """
-        Retrieve the coordinates of vertices of the polygons of
-        the vegetation object.
+        Returns the polygons shifted by the given values.
 
         Parameters
         ----------
@@ -509,20 +507,37 @@ class VegetationObject(AlphaShape, BoundingBox):
 
         Returns
         -------
-        polygons : List of arrays
-            A list with the coordinates of the vertices of the polygons of
-            the vegetation object.
+        polygons : List of polygons
+            Polygons shifted by the given values
         """
         polygons = []
         if type(self.shape) is geometry.multipolygon.MultiPolygon:
             for geom in self.shape.geoms:
-                coords = np.array(geom.exterior.coords)
-                coords += shift
-                polygons.append(coords)
+                ext_coords = np.array(geom.exterior)
+                ext_coords += shift
+                if len(geom.interiors) > 0:
+                    int_rings = []
+                    for i in geom.interiors:
+                        int_coords = np.array(i)
+                        int_coords += shift
+                        int_rings.append(geometry.LinearRing(int_coords))
+                    poly = geometry.Polygon(ext_coords, int_rings)
+                else:
+                    poly = geometry.Polygon(ext_coords)
+                polygons.append(poly)
         elif type(self.shape) is geometry.polygon.Polygon:
-            coords = np.array(self.shape.exterior.coords)
-            coords += shift
-            polygons.append(coords)
+            ext_coords = np.array(self.shape.exterior)
+            ext_coords += shift
+            if len(self.shape.interiors) > 0:
+                int_rings = []
+                for i in self.shape.interiors:
+                    int_coords = np.array(i)
+                    int_coords += shift
+                    int_rings.append(geometry.LinearRing(int_coords))
+                poly = geometry.Polygon(ext_coords, int_rings)
+            else:
+                poly = geometry.Polygon(ext_coords)
+            polygons.append(poly)
         else:
             raise TypeError('Shape not the correct type.')
 
@@ -548,12 +563,12 @@ class VegetationObject(AlphaShape, BoundingBox):
         """
         crs = from_epsg(epsg)
 
-        polygon_coords = self.get_polygon_coords(shift)
+        polygons = self.shift_polygons(shift)
 
         if type(self.shape) is geometry.multipolygon.MultiPolygon:
-            poly = geometry.MultiPolygon(polygon_coords)
+            poly = geometry.MultiPolygon(polygons)
         elif type(self.shape) is geometry.polygon.Polygon:
-            poly = geometry.Polygon(polygon_coords[0])
+            poly = geometry.Polygon(polygons[0])
 
         schema = {'geometry': 'Polygon',
                   'properties': {'area': 'float',
@@ -561,7 +576,8 @@ class VegetationObject(AlphaShape, BoundingBox):
                                  'length': 'float',
                                  'width': 'float'}, }
 
-        with fiona.open(filename, 'w', 'ESRI Shapefile', schema, crs) as c:
+        with fiona.open(filename, 'w', 'ESRI Shapefile',
+                        schema=schema, crs=crs) as c:
             c.write({
                 'geometry': geometry.mapping(poly),
                 'properties': {'area': float(self.area),
@@ -882,17 +898,17 @@ def export_to_shapefile(filename, linear_elements, epsg, global_shift=(0, 0)):
                              'dir': 'float'
                              }, }
 
-    with fiona.open(filename, 'w', 'ESRI Shapefile', schema, crs) as c:
+    with fiona.open(filename, 'w', 'ESRI Shapefile',
+                    schema=schema, crs=crs) as c:
         for i, l in enumerate(linear_elements):
-            polygon_coords = l.get_polygon_coords(global_shift)
+            polygons = l.shift_polygons(global_shift)
             if type(l.shape) is geometry.multipolygon.MultiPolygon:
-                poly = geometry.MultiPolygon([geometry.Polygon(x) for
-                                              x in polygon_coords])
+                p = geometry.MultiPolygon(polygons)
             elif type(l.shape) is geometry.polygon.Polygon:
-                poly = geometry.Polygon(polygon_coords[0])
+                p = geometry.Polygon(polygons[0])
 
             c.write({
-                'geometry': geometry.mapping(poly),
+                'geometry': geometry.mapping(p),
                 'properties': {'id': i,
                                'area': float(l.area),
                                'elongatedness': float(l.elongatedness),

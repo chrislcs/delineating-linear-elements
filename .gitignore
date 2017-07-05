@@ -1,6 +1,7 @@
 .spyproject/
 *.py[cod]
 
+Data/
 *.csv
 *.las
 
