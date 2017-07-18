@@ -2,11 +2,3 @@
 *.py[cod]
 
 Data/
-*.csv
-*.las
-
-*.shp
-*.cpg
-*.dbf
-*.prj
-*.shx
