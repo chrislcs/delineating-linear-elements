@@ -1,0 +1,243 @@
+\section{Method}
+The method is summarized in figure~\ref{fig:workflow}. It consists of three main phases:
+\begin{enumerate*}[(i)]
+	\item feature extraction,
+	\item classification, and
+	\item delineation of linear elements.
+\end{enumerate*}
+%\bigskip
+\begin{figure}[!b]
+	\centering
+	\begin{tikzpicture}[node distance=0.70cm, scale=0.7, every node/.style={transform shape}]
+	
+	\node (in1) [io] {Raw Point Cloud};
+	
+	\node (param) [title, below=of in1] {Feature extraction};
+	\node (pro1) [process, below left=2.5cm and -1.6cm=of param, fill=darkorange!20] {Compute nearest neighbours};
+	\node (pro2) [process, below=of pro1, fill=darkorange!20] {Compute neighbourhood features};
+	
+	\begin{scope}[on background layer]
+	\node (fit1) [fit=(param)(pro1)(pro2), inner sep=4pt, transform shape=false, draw=black!80, fill=darkorange, fill opacity=0.5] {};
+	\end{scope}
+	
+	\node (out1) [io, above right=-0.55cm and 4.5cm=of fit1] {Point Cloud Features};
+	\node (in2) [io, right=of out1] {Manually Classified Point Cloud};
+	
+	\node (class) [title, below right=1.5cm and 5.7cm=of out1] {Classification};
+	\node (pro4) [process, below left=2.5cm and -6.6cm=of class, fill=lightblue!20] {Remove irrelevant points};
+	\node (pro5) [process, below=of pro4, fill=lightblue!20] {Create random forest classifier using manually classified point cloud};
+	\node (pro6) [process, below=of pro5, fill=lightblue!20] {Assess performance using cross validation};
+	\node (pro7) [process, above right=-3.67cm and 7.5cm=of pro6, fill=lightblue!20] {Classify unknown points};
+	\node (pro8) [process, below=of pro7, fill=lightblue!20] {Compute cylindrical neighbourhoods of vegetation points};
+	\node (pro9) [process, below=of pro8, fill=lightblue!20] {Seperate trees from low vegetation using height difference};
+	
+	\begin{scope}[on background layer]
+	\node (fit2) [fit=(class)(pro4)(pro5)(pro6)(pro7)(pro8)(pro9), inner sep=4pt, transform shape=false, draw=black!80, fill=lightblue, fill opacity=0.5] {};
+	\end{scope}
+	
+	\node (out2) [io, above right= -0.55cm and 13.5cm=of fit2] {Classified Point Cloud};
+	
+	\node (lin) [title, below=of out2] {Linear Elements};
+	\node (pro10) [process, below left=2.5cm and -15.6cm=of lin, fill=turquoise!20] {Convert to 2D and downsample};
+	\node (pro11) [process, below=of pro10, fill=turquoise!20] {Grow regions based on rectangularity};
+	\node (pro12) [process, below=of pro11, fill=turquoise!20] {Merge directionally aligned regions};
+	\node (pro13) [process, below=of pro12, fill=turquoise!20] {Assess the elongatedness of the regions};
+	
+	\begin{scope}[on background layer]
+	\node (fit3) [fit=(lin)(pro10)(pro11)(pro12)(pro13), inner sep=4pt, transform shape=false, draw=black!80, fill=turquoise, fill opacity=0.5] {};
+	\end{scope}
+	
+	\node (out3) [io, below=of fit3] {Linear vegetation elements};
+	
+	\draw [arrow] (in1) -- (fit1);
+	\draw [arrow] (fit1) -| +(2.6,0) |- (out1.west);
+	\draw [arrow] (out1.south) |- +(0,-0.45) -| (fit2.north); %(out1.south|-fit2.north);
+	\draw [arrow] (fit2) -| +(4.5,0) |- (out2.west);
+	\draw [arrow] (out2) -- (fit3);
+	\draw [arrow] (in2.south) |- +(0,-0.195) -| (fit2.north); %(in2.south|-fit2.north);
+	
+	\draw [arrow] (pro1) -- (pro2);
+	
+	\draw [arrow] (pro4) -- (pro5);
+	\draw [arrow] (pro5) -- (pro6);
+	\draw [arrow] (pro5) -| +(2,0) |- (pro7);
+	\draw [arrow] (pro7) -- (pro8);
+	\draw [arrow] (pro8) -- (pro9);
+	
+	\draw [arrow] (pro10) -- (pro11);
+	\draw [arrow] (pro11) -- (pro12);
+	\draw [arrow] (pro12) -- (pro13);
+	
+	\draw [arrow] (fit3) -- (out3);
+	
+	\end{tikzpicture}
+	\caption{Overview of the method in a work flow diagram.}
+	\label{fig:workflow}
+\end{figure}
+
+\subsection{Feature extraction}
+A point cloud \(\mathcal{P}\) is a set of points \(\{p_{1}, p_{2}, \dots, p_{n}\}\) \(\in \mathbb{R}^3\). Each point \(p_{i}\) consists of the X, Y and Z coordinates of the point and additional information on the intensity (\(I\)) of the return signal, the return number, and the number of returns (\(R_{t}\)) at \(p_{i}\) is known (figure~\ref{fig:LiDAR}).
+A normalized return number (\(R_{n}\)) was calculated by dividing the return number by the number of returns~\citep{guo2011relevance}.
+
+For each point \(p_{i}\) a neighbourhood set \(\mathcal{N}_{i}\) of points \(\{q_{1}, q_{2}, \dots, q_{k}\}\) is defined, where \(q_{1} = p_{i}\). 
+%This can be done in three ways:
+%\begin{enumerate*}[(i)]
+%	\item a \(k\)-nearest neighbours neighbourhood, where the first \(k\ (-1)\) nearest points to \(p_{i}\) are part of the neighbourhood,
+%	\item a spherical neighbourhood, where all the points within a certain radius (\(r_{s}\)) of \(p_{i}\) belong to the neighbourhood, and
+%	\item a cylindrical neighbourhood, which includes all points within a cylinder with infinite height and a certain radius (\(r_{c}\)) of \(p_{i}\).
+%\end{enumerate*}
+This neighbourhood was determined using a \(k\)-nearest neighbours method with a \(k\) of 50. This method was used instead of spherical neighbourhood of a certain radius, because it is harder to define a suitable radius which works for fluctuating point densities within and across datasets~\citep{weinmann2014semantic}.
+
+To determine these neighbours a k-d tree data structure was constructed, which is a multidimensional binary search tree that can be used for efficient nearest neighbour searches~\citep{bentley1975kdtree}.
+
+For each neighbourhood some basic geometric properties are computed \citep{weinmann2015semantic}:
+
+{\setlength{\abovedisplayskip}{0pt}
+\begin{flalign}
+	\label{eq:deltaz}
+	&\text{Height difference:}&&& \Delta_{Z_{i}} &= \max_{j:\mathcal{N}_{i}}(q_{Z_{j}}) - \min_{j:\mathcal{N}_{i}}(q_{Z_{j}}) &&&\\
+	\label{eq:stdz}
+	&\text{Height standard deviation:}&&& \sigma_{Z_{i}} &= \sqrt{\frac{1}{k} \sum_{j=1}^k (q_{Z_{j}} - \overline{q_{Z}})^2} &&&\\
+	\label{eq:radius}
+	&\text{Local radius:}&&& r_{l_{i}} &= \max_{j: \mathcal{N}_{i}}(|p_{i} - q_{j}|) &&&\\
+	\label{eq:density}
+	&\text{Local point density:}&&& D_{i} &= \frac{k}{\frac{4}{3} \pi r_{l_{i}}^3} &&&
+\end{flalign}
+
+Additionally the neighbourhood of a point can be used to characterize local surface features as first described by~\citet{hoppe1992surface}, and further developed by~\citet{pauly2002efficient}, who used the local structure tensor to estimate the surface normals (the vector perpendicular to the surface (\(\vec{N} = (N_{x}, N_{y}, N_{z})\))) and to define the surface variation (equation~\ref{eq:surfacevariation}). The structure tensor describes the directions of the neighbourhood of a point by determining the covariance matrix of the X, Y and Z coordinates of the points and computing the eigenvalues (\(\lambda_{1}, \lambda_{2}, \lambda_{3}\), where \(\lambda_{1} > \lambda_{2} > \lambda_{3}\)) and eigenvectors of this matrix. The magnitude of the eigenvalues of this covariance matrix describe the spread of points in the direction of the eigenvector. By ranking the eigenvectors based on the respective eigenvalues the spread in the three principle directions of a local point cloud can be quantified. This was expanded upon by~\citet{west2004context} to the following eight structure tensor features:
+
+\begin{flalign}
+\label{eq:linearity}
+&\text{Linearity: }&&& L_{\lambda} &= \frac{\lambda_{1} - \lambda_{2}}{\lambda_{1}}&&&\\
+\label{eq:planarity}
+&\text{Planarity: }&&& P_{\lambda} &= \frac{\lambda_{2} - \lambda_{3}}{\lambda_{1}}&&&\\
+\label{eq:sphericity}
+&\text{Sphericity: }&&& S_{\lambda} &= \frac{\lambda_{3}}{\lambda_{1}}&&&\\
+\label{eq:omnivariance}
+&\text{Omnivariance: }&&& O_{\lambda} &= \sqrt[3]{\lambda_{1} \lambda_{2} \lambda_{3}}&&&\\
+\label{eq:anisotropy}
+&\text{Anisotropy: }&&& A_{\lambda} &= \frac{\lambda_{1} - \lambda_{3}}{\lambda_{1}}&&&\\
+\label{eq:eigenentropy}
+&\text{Eigenentropy: }&&& E_{\lambda} &= -\lambda_{1}\ln(\lambda_{1}) -\lambda_{2}\ln(\lambda_{2}) -\lambda_{3}\ln(\lambda_{3})&&&\\
+\label{eq:sumofeigenvalues}
+&\text{Sum of eigenvalues: }&&& \sum_{\lambda} &= \lambda_{1} + \lambda_{2} + \lambda_{3}&&&\\
+\label{eq:surfacevariation}
+&\text{Local surface variation: }&&& C_{\lambda} &= \frac{\lambda_{3}}{\lambda_{1} + \lambda_{2} + \lambda_{3}}&&&\\
+\end{flalign}
+
+To avoid using an unnecessarily large feature set the correlation between all the features was checked by calculating pearson coefficients. Of the pairs of two extremely correlated features (above 0.98), one was removed. This resulted in the removal of anisotropy, which is negatively correlated with sphericity, and eigenentropy, which is correlated with omnivariance.
+
+Consequently the resulting feature set used for the classification was \(\{I, R_{t}, R_{n}, \Delta_{Z}, \sigma_{Z}, r_{l}, D, N_{z}, L_{\lambda}, P_{\lambda}, S_{\lambda}, O_{\lambda}, \sum_{\lambda}, C_{\lambda}\}\).
+
+\subsection{Classification}
+\label{sec:class}
+Since the linear vegetation elements consist of either trees or low vegetation (shrubs and small trees) the point cloud needs to be classified into \textit{trees}, \textit{low vegetation}, and \textit{irrelevant} points. The difference between trees and low vegetation is ambiguous and is dependent on interpretation. In previous research this boundary has been set at varying height values, ranging from 1.5~\citep{bork2007integrating}, to 3.5~\citep{antonarakis2008object}, to 4~\citep{koukoulas2005spatial}, to 5 meters~\citep{khosravipour2014generating}. We set this boundary at 4m. The irrelevant points are returns of which the linearity does not need to be checked. This may include very low vegetation (herbs), bare ground, water, buildings, and other man made objects.
+
+\subsubsection{Data trimming}
+To speed up the classification first points were removed which were certain not relevant. This was done based on the planarity (equation~\ref{eq:planarity}) and sphericity (equation~\ref{eq:sphericity}) features discussed earlier. Since scanning vegetation (which is larger than herbs) always results in a locally very scattered point cloud, with points spread out throughout the 3D space, points with a locally planar neighbourhood can be removed. That is to say points with a high planarity value, \(P_{\lambda} > 0.7\), and a low sphericity value, \(S_{\lambda} < 0.05\), were removed. These values were manually selected in a conservative way to make sure every point removed was certainly not relevant, while still removing a large portion of points.
+ 
+\subsubsection{Supervised classification}
+The remaining point cloud was classified into \textit{vegetation} and \textit{irrelevant} using a random forest classifier. The random forest algorithm creates a collection of decision trees each based on a random subset of the training data~\citep{ho1998random}. These decision trees are computed by a Classification And Regression Tree (CART) algorithm, which creates splits that minimize a gini impurity index~\citep{breiman1984classification}. This impurity index is the probability a randomly picked sample would be misclassified, given it was randomly classified conform the distribution of classes. For each point, each tree in the forest determines a class, and the class which gets selected by the majority of the trees is chosen as the final classification~\citep{breiman2001random}.
+
+Training and testing data was created by analysing the research area and manually segmenting areas of \textit{vegetation} and \textit{irrelevant}. This was done based on the point cloud and aerial photos~\citep{PDOK2015luchtfoto}. 
+
+Because the point cloud is trimmed based on planarity/sphericity and it concerns an agricultural landscape it has become very imbalanced, having a lot more \textit{vegetation} than \textit{irrelevant} points, which was also very noticeable in the training and testing data. Imbalanced training data can lead to undesirable classification results~\citep{he2009learning}. Therefore a balanced random forest was used, where instead of the decision trees being made using bootstrap samples of the entire training dataset, a bootstrap sample was taken from only the minority class and a random sample was taken of the majority class based on the size of the minority class sample~\citep{Chen2004using}. Employing enough trees eventually all majority class data gets used, while still maintaining a balance between the two classes. The size of the majority sample compared to the minority sample can be adjusted to find the best balance.
+
+The random forest parameters (i.e. maximum depth, maximum number of features, minimal samples per leaf, minimal samples per split) and the ratio between minority and majority samples were optimized using a cross validated grid search.
+
+\subsubsection{Accuracy Assessment}
+
+To assess the accuracy of the classification a confusion matrix was used. Such a matrix shows the predicted and the actual classes of the tested pixels/points. It gives an overview of the performance of the classification in that it identifies and quantifies the errors. Using this matrix a precision (user's accuracy), recall (producer's accuracy), and overall accuracy can be calculated~\citep{stehman1997selecting}, but these metrics are unable to provide a good picture of the performance of a classifier when the data is very imbalanced.
+
+Instead, three metrics, which provide a useful indication of performance even when dealing with a very imbalanced dataset, were used~\citep{sun2009classification, lopez2013insight}. These are:
+\begin{enumerate*}[(i)]
+	\item the receiver operating characteristic (ROC) curve~\citep{bradley1997use},
+	\item the Matthew's correlation coefficient (MCC)~\citep{matthews1975comparison}, and
+	\item the geometric mean~\citep{kubat1998machine}.
+\end{enumerate*}
+
+To create a ROC-curve the true positive rate is plotted against the false positive rate at various decision thresholds. The area under a ROC-curve (AUC) is a measure for the performance of the classifier~\citep{bradley1997use}.
+
+The MCC analyses the correlation between the observed and the predicted data and is defined as follows:
+
+\begin{equation}
+	\label{eq:MCC}
+	{\text{MCC}}={\frac  {TP\times TN-FP\times FN}{{\sqrt  {(TP+FP)(TP+FN)(TN+FP)(TN+FN)}}}}
+\end{equation}
+
+where TP are the true positives, TN the true negatives, FP the false positives, and FN the false negatives. It often gives a more balanced evaluation of a classifier than the precision, recall and accuracy~\citep{baldi2000assessing} and it is an effective metric for unbalanced datasets~\citep{kohavi1995study}.
+
+The geometric mean of the recall of both classes evaluates the balanced performance of the classifier for the two classes~\citep{kubat1998machine, sun2009classification}.
+
+These scores were acquired by performing a 10-fold cross validation. This is done by splitting the data into 10 randomly mutually exclusive subsets and using a subset as testing data on a classifier trained on the remaining data~\citep{kohavi1995study}. This method is effective against overfitting and does not further reduce the training data (which a test and validation set would).
+
+To assess which features are most influential when separating vegetation from non-vegetation a feature importance analysis was performed. This is done by summing the decreases in gini impurity due to a feature in all the trees divided by the total amount of trees~\citep{breiman2002manual}.
+
+\subsubsection{Delineating trees and low vegetation}
+To divide the vegetation class into \textit{tree} and \textit{low vegetation} for each point a cylindrical neighbourhood was determined, which includes all points within a cylinder with infinite height and a radius of 2 meters. Within this neighbourhood the height difference (equation~\ref{eq:deltaz}) was computed. As mentioned earlier, if this value exceeded 4 meters the point was classified as a \textit{tree} point, otherwise as a \textit{low vegetation} point.
+
+\subsection{Delineating Linear Elements}
+To delineate linear from non-linear vegetation elements the two classes were segmented into rectangular objects, since those can be assessed for linearity by their length and width. This is done by growing regions within the relevant points as long as the shape remains rectangular. 
+
+\begin{figure}
+	\centering
+	\includegraphics[scale=0.40]{./img/downsample}
+	\caption{An example showing the tree points before and after downsampling.}
+	\label{fig:downsample}
+\end{figure}
+Since the linearity of an object is solely determined by the 2D spatial distribution of points, the point cloud was converted to 2D by removing the Z-coordinate from all the points. To speed up the computation the 2D point cloud was spatially downsampled to 1 meter distance between all points for low vegetation and 2 meter for trees (figure~\ref{fig:downsample}). Low vegetation objects are often smaller than trees and consequently require more points for an accurate delineation. This leads to a slightly less precise delineation, but results in a substantially decreased computation time.
+
+\subsubsection{Rectangularity}
+\begin{figure}
+	\centering
+	\input{./img/hulls.tikz}
+	\caption{An example showing the different hulls used for determining the rectangularity.}
+	\label{fig:hulls}
+\end{figure}
+The rectangularity of an object can be described as the ratio between the area of an object and the area of its minimum bounding rectangle~\citep{rosin1999measuring}.
+
+The minimum bounding rectangle (figure~\ref{fig:hulls}) is computed with rotating calipers as described by~\citet{toussaint1983solving}. First a convex hull is determined for the points, which is the smallest convex set of points which contains every point (figure~\ref{fig:hulls}), by using the QuickHull algorithm as defined by~\citet{preparata1985computational}. The minimum bounding rectangle has a side collinear with one of the edges of the convex hull~\citep{freeman1975determining}. Consequently while rotating by the angles of the edges rectangles can be created using the minima and maxima of the coordinates in the rotated system. Keeping track of the rectangle with the minimal area the minimum bounding rectangle can be found.
+
+The area of the object can be found by computing an alpha shape of the set of points belonging to the object~\citep{edelsbrunner1983shape}. An alpha shape is a hull, similar to a convex hull, which describes the shape of a set of points (figure~\ref{fig:hulls}). It is created by computing a Delaunay triangulation of the points~\citep{delaunay1934sphere} and removing the triangles with a circumradius higher than \(1/\alpha\), where \(\alpha\) is a parameter which consequently influences the amount of triangles removed from the triangulation and thus the shape and area of the alpha shape. Higher alphas lead to more complex shapes, while lower ones to more smooth shapes (figure~\ref{fig:hulls}).
+
+\subsubsection{Region Growing}
+To segment the point cloud into rectangular objects a region growing segmentation technique was used. This method was introduced by \citet{besl1988segmentation} and has since been an effective approach to segment a point cloud~\citep{tovari2005segmentation, rabbani2006segmentation, nurunnabi2012robust, vosselman2013point, elberink2014user, vo2015octree}. The region growing method consists of two main steps: seed selection and region growing. The seed locations can be selected randomly or based on some properties of the points. The growing is based on a similarity criterion based on the proximity and attributes of the points.
+
+The region growing used in this method is a bit different. Instead of using the attributes to compare the points and grow based on some similarity criteria, the regions are grown based only on proximity and a constraint of rectangularity (figure~\ref{fig:regiongrowing}). The seed selection is done based on the coordinates to minimize the chances of starting at boundary regions.
+
+\begin{figure}
+	\centering
+	\input{./img/regiongrowing.tikz}
+	\caption{An example showing the region growing process.}
+	\label{fig:regiongrowing}
+\end{figure}
+
+Thus the point with the minimal x-coordinate and its 20 closest neighbours were used as the starting region (given this region is rectangular, otherwise the point is discarded and the process repeated) and subsequently points were added as long as the region’s rectangularity did not drop below a threshold of 0.55. This threshold was determined by experimentation and manual evaluation. Once no more new points could be added to the region the procedure was repeated for the next region until all the points are checked.
+
+\subsubsection{Merging Objects}
+The objects can still be quite fragmented after they have been grown, especially for curved regions. To fix this, objects were merged which were
+\begin{enumerate*}[(i)]
+	\item in proximity of each other,
+	\item aligned with each other, and
+	\item facing about the same direction.
+\end{enumerate*}
+The direction was determined by computing the angle between one of the long sides of the minimum bounding box and the x-axis. The alignment was checked by comparing the angle of the line between the two centre points of the objects with the directions. Once merged the lengths of the objects were added and the maximum of the widths taken as the new width.
+
+\subsubsection{Elongatedness}
+The resulting rectangular regions were assessed for linearity by determining the elongatedness of an object, which is defined as the ratio between its length and its width~\citep{nagao2013structural}. 
+
+The minimum elongatedness of objects was set at 2.5, based on a manual trial and error. To prevent long, but wide patches of forest to be classified as linear elements a maximum width of 60 meters was used.
+
+\subsubsection{Accuracy Assesment}
+To assess the accuracy of the delineation of linear objects a manual delineation was done. First a polygon was made both from the tree and low vegetation points using alpha shapes. Subsequently the two polygons were manually further segmented into objects. Finally the polygons belonging to a linear object according to our interpretation were manually marked as being linear. The resulting map was compared with the automated delineation. This was done by a difference map and confusion matrices where we compared the true positive, true negative, false positive and false negative in area. Since this data is, unlike before, not very imbalanced we can use traditional metrics for accuracy. Therefore a user's, producer's and overall accuracy was calculated, as well as an F1, kappa and MCC score~\citep{congalton2008assessing}.
+
+\subsection{Software \& Hardware}
+We chose to use solely free and open source software (FOSS), for two main reasons:
+\begin{enumerate*}[(i)]
+	\item to avoid `black boxes', where it is unclear exactly what calculations or algorithms are being used to produce the results, and
+	\item to make the method more easily runnable with cloud- or supercomputing solutions, and thus able to compute for very large areas.
+\end{enumerate*}
+
+The large majority was made in Python (2.7.12) with the NumPy~(1.11.2), SciPy~(0.18.1), pandas~(0.18.1), scikit-learn~(0.17.1) and Shapely~(1.5.13) libraries. For the preprocessing of data LASTools~(version~160429) and CloudCompare~(v2.8) were used and Cloudcompare was also used for visualizing and downsampling the point cloud.
+
+For the computation a desktop computer was used with an Intel Xeon E3-1220 3.1 GHz quad-core processor and 16GB of RAM.
