@@ -37,7 +37,7 @@ kdtree = cKDTree(points)
 distances, point_neighbours = kdtree.query(points, max(neighbours))
 print "Done!"
 
-# %% Compute point parameters
+# %% Compute point features
 features = ['delta_z', 'std_z', 'radius', 'density', 'norm_z',
             'linearity', 'planarity', 'sphericity', 'omnivariance',
             'anisotropy', 'eigenentropy', 'sum_eigenvalues',
